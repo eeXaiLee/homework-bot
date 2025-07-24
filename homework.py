@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 import time
+from http import HTTPStatus
 
 import requests
 from dotenv import load_dotenv
@@ -70,9 +71,10 @@ def get_api_answer(timestamp):
         response = requests.get(
             ENDPOINT, headers=HEADERS, params={'from_date': timestamp}
         )
-        response.raise_for_status()
-        logger.debug(f'Успешный запрос к API. Код: {response.status_code}.')
-
+        if response.status_code != HTTPStatus.OK:
+            raise Exception(
+                f'Ошибка запроса: {response.status_code} — {response.text}'
+            )
         return response.json()
 
     except requests.RequestException as error:
@@ -82,30 +84,46 @@ def get_api_answer(timestamp):
 def check_response(response):
     """Проверяет корректность ответа API."""
     if not isinstance(response, dict):
-        logger.error('Ответ API должен быть словарём.')
+        error_message = 'Ответ API должен быть словарём.'
+        logger.error(error_message)
+        raise TypeError(error_message)
 
     if 'homeworks' not in response:
-        logger.error('Отсутствует ключ "homeworks" в ответе API.')
+        error_message = 'Отсутствует ключ "homeworks" в ответе API.'
+        logger.error(error_message)
+        raise KeyError(error_message)
     if not isinstance(response['homeworks'], list):
-        logger.error('homeworks должен быть списком.')
+        error_message = 'homeworks должен быть списком.'
+        logger.error(error_message)
+        raise TypeError(error_message)
 
     if 'current_date' not in response:
-        logger.error('Отсутствует ключ "current_date" в ответе API.')
+        error_message = 'Отсутствует ключ "current_date" в ответе API.'
+        logger.error(error_message)
+        raise KeyError(error_message)
     if not isinstance(response['current_date'], int):
-        logger.error('current_date должен быть целым числом.')
+        error_message = 'current_date должен быть целым числом.'
+        logger.error(error_message)
+        raise TypeError(error_message)
 
 
 def parse_status(homework):
     """Извлекает статус домашней работы."""
     if 'homework_name' not in homework:
-        logger.error('Отсутствует ключ "homework_name" в homework.')
+        error_message = 'Отсутствует ключ "homework_name" в homework.'
+        logger.error(error_message)
+        raise KeyError(error_message)
 
     if 'status' not in homework:
-        logger.error('Отсутствует ключ "status" в homework.')
+        error_message = 'Отсутствует ключ "status" в homework.'
+        logger.error(error_message)
+        raise KeyError(error_message)
 
     status = homework['status']
     if status not in HOMEWORK_VERDICTS:
-        logger.error(f'Неизвестный статус: {status}.')
+        error_message = f'Неизвестный статус: {status}'
+        logger.error(error_message)
+        raise ValueError(error_message)
 
     homework_name = homework['homework_name']
     verdict = HOMEWORK_VERDICTS[status]
