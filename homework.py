@@ -52,16 +52,9 @@ def send_message(bot: TeleBot, message: str) -> None:
     Args:
         bot: Экземпляр бота TeleBot.
         message: Текст сообщения для отправки.
-
-    Raises:
-        ApiException: Если произошла ошибка при отправке сообщения.
     """
-    try:
-        bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
-    except ApiException as error:
-        logger.error(f'Ошибка при отправке сообщения: {error}.')
-    else:
-        logger.debug(f'Сообщение отправлено: "{message}".')
+    bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
+    logger.debug(f'Сообщение отправлено: "{message}".')
 
 
 def get_api_answer(timestamp: int) -> dict:
@@ -160,18 +153,14 @@ def parse_status(homework: dict) -> str:
 
 def main() -> None:
     """Основная логика работы бота."""
-    logging.basicConfig(
-        format='%(asctime)s [%(levelname)s] %(message)s',
-        level=logging.DEBUG,
-        handlers=[logging.StreamHandler(sys.stdout)]
-    )
-
     missing_tokens = check_tokens()
     if missing_tokens:
-        for token in missing_tokens:
-            logger.critical(
-                f'Отсутствует обязательная переменная окружения: {token}.'
+        logger.critical(
+            (
+                'Отсутствуют обязательные переменные окружения: '
+                f'{", ".join(missing_tokens)}.'
             )
+        )
         sys.exit(
             'Программа остановлена из-за отсутствия переменных окружения.'
         )
@@ -189,15 +178,17 @@ def main() -> None:
 
             if homeworks:
                 message = parse_status(homeworks[0])
-                logger.debug(f'Получен статус: {message}.')
             else:
                 message = 'Нет новых статусов домашних работ.'
-                logger.debug(message)
 
             if message != last_message:
-                send_message(bot, message)
-                last_message = message
-                timestamp = response.get('current_date', timestamp)
+                try:
+                    send_message(bot, message)
+                except ApiException as error:
+                    logger.error(f'Ошибка при отправке сообщения: {error}.')
+                else:
+                    last_message = message
+                    timestamp = response.get('current_date', timestamp)
 
         except Exception as error:
             error_message = f'Сбой в работе программы: {error}'
@@ -211,4 +202,9 @@ def main() -> None:
 
 
 if __name__ == '__main__':
+    logging.basicConfig(
+        format='%(asctime)s [%(levelname)s] %(message)s',
+        level=logging.DEBUG,
+        handlers=[logging.StreamHandler(sys.stdout)]
+    )
     main()
