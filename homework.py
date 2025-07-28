@@ -53,8 +53,12 @@ def send_message(bot: TeleBot, message: str) -> None:
         bot: Экземпляр бота TeleBot.
         message: Текст сообщения для отправки.
     """
-    bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
-    logger.debug(f'Сообщение отправлено: "{message}".')
+    try:
+        bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
+    except ApiException as error:
+        logger.error(f'Ошибка при отправке сообщения: {error}.')
+    else:
+        logger.debug(f'Сообщение отправлено: "{message}".')
 
 
 def get_api_answer(timestamp: int) -> dict:
@@ -182,13 +186,7 @@ def main() -> None:
                 message = 'Нет новых статусов домашних работ.'
 
             if message != last_message:
-                try:
-                    send_message(bot, message)
-                except ApiException as error:
-                    logger.error(f'Ошибка при отправке сообщения: {error}.')
-                else:
-                    last_message = message
-                    timestamp = response.get('current_date', timestamp)
+                send_message(bot, message)
 
         except Exception as error:
             error_message = f'Сбой в работе программы: {error}'
@@ -196,6 +194,10 @@ def main() -> None:
             if error_message != last_message:
                 send_message(bot, error_message)
                 last_message = error_message
+
+        else:
+            last_message = message
+            timestamp = response.get('current_date', timestamp)
 
         finally:
             time.sleep(RETRY_PERIOD)
